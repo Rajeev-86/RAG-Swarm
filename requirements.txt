@@ -1,0 +1,33 @@
+# ── Core ──────────────────────────────────────────────────────────────────────
+langchain>=0.3.0
+langchain-community>=0.3.0
+
+# ── Vector Store ──────────────────────────────────────────────────────────────
+chromadb>=0.5.0
+
+# ── BM25 ──────────────────────────────────────────────────────────────────────
+rank-bm25>=0.2.2
+
+# ── Embeddings & Reranking (BGE-M3 suite) ────────────────────────────────────
+FlagEmbedding>=1.2.0
+torch>=2.0.0
+transformers>=4.40.0
+
+# ── LLM Backends ─────────────────────────────────────────────────────────────
+groq>=0.9.0          # Groq Cloud (dev / fast iteration)
+ollama>=0.3.0        # Ollama (local production inference)
+
+# ── Document Loading ──────────────────────────────────────────────────────────
+pypdf>=4.0.0
+python-docx>=1.1.0
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
+python-dotenv>=1.0.0
+numpy>=1.26.0
+tqdm>=4.66.0
+
+# ── Testing & Evaluation ──────────────────────────────────────────────────────
+pytest>=8.0.0
+deepeval>=1.0.0
+datasets>=2.19.0
+huggingface_hub>=0.23.0
