@@ -79,6 +79,7 @@ class BaseAgent(ABC):
         # ── Post-processing ────────────────────────────────────────────────
         result.peer_queries = self._compile_peer_queries(result.findings)
         result = self._apply_escalation_policy(result)
+        result = self._domain_sanity_check(result)
 
         return result
 

@@ -1,7 +1,7 @@
 # Federated M&A Due Diligence Swarm
 
 > Graph-of-Graphs multi-agent architecture for autonomous corporate data room auditing.
-> **Modules A (Data Layer), B (Domain Agents), and C (Mesh Interface)** are implemented here.
+> **Modules A (Data Layer), B (Domain Agents), C (Mesh Interface), and D (Leader Agent)** are fully implemented.
 
 ---
 
@@ -91,6 +91,15 @@ ma_due_diligence/
 │   └── tests/
 │       └── test_mesh.py      ← P2P routing and kill-switch tests
 │
+├── module_d/                 ← Leader Agent (State Hub)
+│   ├── __init__.py
+│   ├── checkpoint_manager.py ← Disk checkpoint save/load + state persistence
+│   ├── leader_graph.py       ← Global LangGraph StateGraph assembly
+│   ├── leader_nodes.py       ← Node handlers for leader orchestration
+│   ├── leader_state.py       ← Typed state schema (shared memory, audit log)
+│   └── tests/
+│       └── test_leader.py    ← Kill-switch detection and checkpointing tests
+│
 └── data/
     └── data_room/            ← Drop your M&A documents here
 ```
@@ -176,9 +185,9 @@ ollama pull llama3:8b
 
 | Module | Status | Description |
 |---|---|---|
-| **A** | ✅ Complete | 5-Stage RAG pipeline (this module) |
+| **A** | ✅ Complete | 5-Stage RAG pipeline (Data Layer) |
 | **B** | ✅ Complete | Domain agents — Legal, Financial, HR, Cyber |
 | **C** | ✅ Complete | Mesh interface — P2P tool-calling protocol |
-| **D** | 🔜 Next | Leader Agent — LangGraph state + kill switch |
+| **D** | ✅ Complete | Leader Agent — LangGraph state + kill switch |
 
 **Integration rule:** Do not run the full graph until each module passes its isolated unit tests.
