@@ -1,6 +1,11 @@
 # ── Core ──────────────────────────────────────────────────────────────────────
 langchain>=0.3.0
 langchain-community>=0.3.0
+langgraph
+langchain-groq
+langchain-ollama
+pydantic
+langgraph-checkpoint-sqlite
 
 # ── Vector Store ──────────────────────────────────────────────────────────────
 chromadb>=0.5.0
