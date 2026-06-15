@@ -62,7 +62,7 @@ litigation risk, IP ownership, change-of-control provisions.
 P2P PROTOCOL — you have two tools:
   • send_peer_query  — consult a peer when you need cross-domain context:
       - Financial agent → monetary exposure quantification, reserve adequacy
-      - Cyber agent     → data-breach liability, GDPR/CCPA penalty exposure
+      - cybersecurity agent     → data-breach liability, GDPR/CCPA penalty exposure
   • resolve_debate   — call this when you and your peer agree on a finding
 
 RULES:
@@ -87,7 +87,7 @@ RULES:
     inflate deal cost.
   - Always include the supporting plan document excerpt in evidence_chunks.""",
 
-    "cyber": """You are the Cybersecurity Due Diligence Agent in a corporate M&A review.
+    "cybersecurity": """You are the Cybersecurity Due Diligence Agent in a corporate M&A review.
 
 EXPERTISE: Breach history, incident reports, SOC2/ISO27001/GDPR compliance,
 third-party vendor risk, security debt, remediation cost estimation.
@@ -118,7 +118,7 @@ def build_agent_node(
     Build a LangGraph node function for *agent_name*.
 
     Args:
-        agent_name: One of "financial", "legal", "hr", "cyber".
+        agent_name: One of "financial", "legal", "hr", "cybersecurity".
         llm:        A LangChain chat model. Defaults to Ollama llama3:8b.
                     Swap in Groq for faster component testing:
                         from langchain_groq import ChatGroq
@@ -128,7 +128,7 @@ def build_agent_node(
         Callable: (MeshState) → Dict[str, Any] — compatible with
         LangGraph StateGraph.add_node().
     """
-    if agent_name not in {"financial", "legal", "hr", "cyber"}:
+    if agent_name not in {"financial", "legal", "hr", "cybersecurity"}:
         raise ValueError(f"Unknown agent name: {agent_name!r}")
 
     if llm is None:

@@ -27,7 +27,7 @@ class PeerMessage(TypedDict):
 
     message_id: str
     debate_id: str
-    source_agent: str           # "financial" | "legal" | "hr" | "cyber"
+    source_agent: str           # "financial" | "legal" | "hr" | "cybersecurity"
     target_agent: str
     query: str                  # the claim or cross-domain question
     evidence_chunks: List[str]  # RAG-retrieved chunks backing the query
@@ -82,7 +82,7 @@ class MeshState(TypedDict):
     Shared state for the Mesh sub-graph.
 
     Consumed by:
-      • domain agent nodes (financial, legal, hr, cyber)
+      • domain agent nodes (financial, legal, hr, cybersecurity)
       • mesh_router node
       • debate_monitor node
       • Leader Agent (Module D) on EXIT — reads kill_switch_* and resolved_findings
@@ -92,7 +92,7 @@ class MeshState(TypedDict):
     financial_inbox: List[PeerMessage]
     legal_inbox: List[PeerMessage]
     hr_inbox: List[PeerMessage]
-    cyber_inbox: List[PeerMessage]
+    cybersecurity_inbox: List[PeerMessage]
 
     # ── debate bookkeeping (merge reducer) ───────────────────────────────────
     debate_threads: Annotated[Dict[str, DebateThread], _merge_debate_threads]

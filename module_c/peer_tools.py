@@ -23,7 +23,7 @@ from typing import List, Optional
 
 from langchain_core.tools import tool
 
-VALID_AGENTS = frozenset({"financial", "legal", "hr", "cyber"})
+VALID_AGENTS = frozenset({"financial", "legal", "hr", "cybersecurity"})
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -51,7 +51,7 @@ def create_send_peer_query_tool(source_agent: str):
         Send a query with supporting evidence to a peer domain agent.
 
         Args:
-            target_agent:    Recipient — one of: financial, legal, hr, cyber.
+            target_agent:    Recipient — one of: financial, legal, hr, cybersecurity.
             query:           The specific claim or cross-domain question.
             evidence_chunks: RAG-retrieved document chunks backing the query.
             debate_id:       Existing debate thread to continue (None = new).

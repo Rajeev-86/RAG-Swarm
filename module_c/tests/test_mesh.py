@@ -78,7 +78,7 @@ def _state(
         "financial_inbox": [],
         "legal_inbox": [],
         "hr_inbox": [],
-        "cyber_inbox": [],
+        "cybersecurity_inbox": [],
         "debate_threads": threads or {},
         "active_agents": [],
         "mesh_tick": 0,
@@ -145,7 +145,7 @@ class TestSendPeerQueryTool:
     def test_all_four_agents_can_call_each_other(self):
         pairs = [
             ("financial", "legal"), ("legal", "financial"),
-            ("hr", "cyber"),        ("cyber", "hr"),
+            ("hr", "cybersecurity"),        ("cybersecurity", "hr"),
         ]
         for source, target in pairs:
             tool = create_send_peer_query_tool(source)
@@ -171,7 +171,7 @@ class TestResolveDebateTool:
         assert "timestamp" in result
 
     def test_resolved_by_reflects_source_agent(self):
-        for agent in ("financial", "legal", "hr", "cyber"):
+        for agent in ("financial", "legal", "hr", "cybersecurity"):
             tool = create_resolve_debate_tool(agent)
             result = tool.invoke(
                 {"debate_id": str(uuid.uuid4()), "resolution_summary": "agreed"}
@@ -230,11 +230,11 @@ class TestDebateMonitorNode:
         assert result.get("kill_switch_triggered") is False
 
     def test_different_pairs_do_not_trigger_fragmentation(self):
-        """financial↔legal and hr↔cyber are distinct pairs — no fragmentation."""
+        """financial↔legal and hr↔cybersecurity are distinct pairs — no fragmentation."""
         did1, did2 = str(uuid.uuid4()), str(uuid.uuid4())
         threads = {
             did1: _thread(did1, initiating="financial", responding="legal"),
-            did2: _thread(did2, initiating="hr", responding="cyber"),
+            did2: _thread(did2, initiating="hr", responding="cybersecurity"),
         }
         result = debate_monitor_node(_state(threads))
         assert result.get("kill_switch_triggered") is not True
@@ -301,11 +301,11 @@ class TestCreateInitialMeshState:
         assert msg["turn_number"] == 1
 
     def test_other_inboxes_are_empty(self):
-        state = create_initial_mesh_state("hr", "cyber", "q", [])
+        state = create_initial_mesh_state("hr", "cybersecurity", "q", [])
         assert state["financial_inbox"] == []
         assert state["legal_inbox"] == []
         assert state["hr_inbox"] == []       # initiator, not receiver
-        assert len(state["cyber_inbox"]) == 1
+        assert len(state["cybersecurity_inbox"]) == 1
 
     def test_creates_one_debate_thread(self):
         state = create_initial_mesh_state("financial", "legal", "q", [])
@@ -439,10 +439,10 @@ class TestAgentNodeWiring:
         from module_c.agent_nodes import build_agent_node
 
         mock_llm = self._make_mock_llm(None, {})
-        node = build_agent_node("cyber", llm=mock_llm)
+        node = build_agent_node("cybersecurity", llm=mock_llm)
         state = _state()   # all inboxes empty
 
         updates = node(state)
 
-        assert updates == {"cyber_inbox": []}
+        assert updates == {"cybersecurity_inbox": []}
         mock_llm.invoke.assert_not_called()   # LLM never invoked for idle agent

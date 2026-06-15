@@ -12,7 +12,7 @@ Topology
   mesh_router ──(conditional, picks first active agent)──► financial
       ▲                                                  │  legal
       │                                                  │  hr
-      │                                                  │  cyber
+      │                                                  │  cybersecurity
       │                                                  │
       │         ◄─────────────────────────────────────── ┘
       │                (each agent → debate_monitor)
@@ -67,7 +67,7 @@ from .agent_nodes import build_agent_node
 from .debate_monitor import debate_monitor_node, should_continue_mesh
 from .mesh_state import DebateThread, MeshState, PeerMessage
 
-_DOMAIN_AGENTS = ("financial", "legal", "hr", "cyber")
+_DOMAIN_AGENTS = ("financial", "legal", "hr", "cybersecurity")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -222,7 +222,7 @@ def create_initial_mesh_state(
         "financial_inbox": [],
         "legal_inbox": [],
         "hr_inbox": [],
-        "cyber_inbox": [],
+        "cybersecurity_inbox": [],
         "debate_threads": {debate_id: initial_thread},
         "active_agents": [target_agent],
         "mesh_tick": 0,
