@@ -36,9 +36,12 @@ def run_evaluation():
         
         # Pull context from our Module A data layer
         retrieval_hits = rag.retrieve(question_text)
-        evidence_chunks = [hit.content for hit in retrieval_hits]
         
-        # We can dynamically assign domains based on the question_type if needed, 
+        evidence_chunks = [
+            f"[Source: {hit.get('metadata', {}).get('filename', 'Unknown')}]\n{hit.get('document', '')}"
+            for hit in retrieval_hits.retrieved_chunks
+        ]
+                # We can dynamically assign domains based on the question_type if needed, 
         # but defaulting to financial <-> legal for demonstration.
         task = make_audit_task(
             task_id=q_id,

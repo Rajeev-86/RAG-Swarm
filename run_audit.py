@@ -15,11 +15,13 @@ import pprint
 from typing import List
 
 # Setup environment if needed
-from dotenv import load_setup_environments # if exists? Or just python standard
+from dotenv import load_dotenv # if exists? Or just python standard
 
 from module_a.pipeline import RAGPipeline
 from module_d.leader_graph import build_leader_graph
 from module_d.leader_state import make_audit_task, make_initial_global_state
+
+load_dotenv()
 
 def main():
     print("Initializing RAG Pipeline (Module A)...")
@@ -51,9 +53,9 @@ def main():
         retrieval_result = rag.retrieve(td["query"])
         
         # Format the RAG results into chunk strings
-        evidence_chunks = [ 
-            f"[Source: {hit.metadata.get('source', 'Unknown')}]\n{hit.content}" 
-            for hit in retrieval_result
+        evidence_chunks = [
+            f"[Source: {hit.get('metadata', {}).get('filename', 'Unknown')}]\n{hit.get('document', '')}"
+            for hit in retrieval_result.retrieved_chunks
         ]
         
         task = make_audit_task(
