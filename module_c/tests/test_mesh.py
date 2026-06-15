@@ -78,7 +78,7 @@ def _state(
         "financial_inbox": [],
         "legal_inbox": [],
         "hr_inbox": [],
-        "cybersecurity_inbox": [],
+        "cyber_inbox": [],
         "debate_threads": threads or {},
         "active_agents": [],
         "mesh_tick": 0,
@@ -305,7 +305,7 @@ class TestCreateInitialMeshState:
         assert state["financial_inbox"] == []
         assert state["legal_inbox"] == []
         assert state["hr_inbox"] == []       # initiator, not receiver
-        assert len(state["cybersecurity_inbox"]) == 1
+        assert len(state["cyber_inbox"]) == 1
 
     def test_creates_one_debate_thread(self):
         state = create_initial_mesh_state("financial", "legal", "q", [])
@@ -444,5 +444,5 @@ class TestAgentNodeWiring:
 
         updates = node(state)
 
-        assert updates == {"cybersecurity_inbox": []}
+        assert updates == {"cyber_inbox": []}
         mock_llm.invoke.assert_not_called()   # LLM never invoked for idle agent
