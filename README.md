@@ -1,193 +1,118 @@
-# Federated M&A Due Diligence Swarm
+# Federated M&A Due Diligence Swarm (RAG-Swarm)
 
-> Graph-of-Graphs multi-agent architecture for autonomous corporate data room auditing.
-> **Modules A (Data Layer), B (Domain Agents), C (Mesh Interface), and D (Leader Agent)** are fully implemented.
+An enterprise-grade, multi-agent AI system designed to automate and cross-validate Mergers & Acquisitions (M&A) due diligence. 
 
----
+Built natively on **LangGraph**, the system orchestrates a swarm of domain-specific experts (Legal, Financial, HR, Cybersecurity) that retrieve data from a shared virtual data room, identify risks, and autonomously debate cross-domain implications in a secure peer-to-peer mesh network.
 
-## Architecture Overview
+## 🏗️ Architecture
 
-```
-┌────────────────────────────────────────────────────────────────┐
-│                    QUERY (from Agent)                          │
-└────────────────────────┬───────────────────────────────────────┘
-                         │
-              ┌──────────▼──────────┐
-              │  Stage 1            │
-              │  Query Decomposer   │  ← LLM (Groq / Ollama)
-              │  (LLM-powered)      │
-              └──────────┬──────────┘
-                         │  [{subquery, domain}, …]
-          ┌──────────────▼──────────────┐
-          │  Stage 2: Hybrid Search     │  parallel per sub-query
-          │  ┌──────────┐ ┌──────────┐  │
-          │  │ Dense    │ │  BM25    │  │  ← BGE-M3 + ChromaDB
-          │  │ (cosine) │ │ Keyword  │  │  ← rank_bm25
-          │  └────┬─────┘ └────┬─────┘  │
-          └───────┼────────────┼─────────┘
-                  └─────┬──────┘
-              ┌──────────▼──────────┐
-              │  Stage 3            │
-              │  RRF Fusion         │  ← rank-free score merging
-              └──────────┬──────────┘
-              ┌──────────▼──────────┐
-              │  Stage 4            │
-              │  Cross-Encoder      │  ← BGE-reranker-v2-m3
-              │  Reranking          │
-              └──────────┬──────────┘
-              ┌──────────▼──────────┐
-              │  Stage 5            │
-              │  Context Assembly   │  → injected into Agent prompt
-              └─────────────────────┘
-```
+The system is strictly decoupled into four modular layers:
+
+### Module A: Data Layer (5-Stage RAG)
+A production-ready RAG pipeline ensuring agents receive highly relevant context.
+* **Idempotent Ingestion:** Deterministic SHA-256 chunk hashing prevents index duplication on re-runs.
+* **Hybrid Search:** Combines semantic search (ChromaDB/cosine similarity) with exact keyword matching (BM25Okapi).
+* **Reciprocal Rank Fusion (RRF):** Merges dense and sparse retrieval signals natively without arbitrary normalisation.
+* **Cross-Encoder Reranking:** Re-scores the fused candidate pool for maximum contextual precision.
+
+### Module B: Domain Agents
+Four specialised LangChain agents: `Financial`, `Legal`, `HR`, and `Cybersecurity`.
+* Each agent operates independently during the initial extraction phase.
+* Utilises strict Pydantic schemas (`AgentResult`, `PeerQuery`, `Finding`) to output structured risks and scores.
+* Agents identify inter-domain blind spots and generate `PeerQueries` for cross-validation.
+
+### Module C: Mesh Interface (P2P Network)
+A decentralised communication graph where agents collaborate.
+* **Tool Calling:** Agents utilise `send_peer_query` and `resolve_debate` tools via dynamically bound LangChain `StructuredTool` interfaces.
+* **Debate Limits:** Enforces a strict 3-turn limit per thread to prevent infinite conversational loops.
+* **Kill-Switch Intervention:** Automatically intercepts "context fragmentation" if an agent pair triggers multiple concurrent, unresolved threads.
+
+### Module D: Leader Agent (The State Hub)
+The central orchestration layer managing the swarm's lifecycle.
+* **Deterministic Execution:** Uses LangGraph's explicit graph-based execution model (StateGraph) for deterministic coordination, conditional routing, and auditable trails.
+* **State Persistence:** Implements a SQLite checkpointer to persist memory across sessions and ensure agents can resume interrupted workflows.
+* **Forced Summaries:** LLM-powered nodes generate synthesised findings if the kill-switch interrupts a deadlocked debate.
 
 ---
 
-## Project Structure
+## ⚙️ Prerequisites & Setup
+
+The framework is model-agnostic, supporting both local execution and cloud APIs.
+
+1. **Clone the repository:**
+   ```bash
+   git clone [https://github.com/rajeev-86/rag-swarm.git](https://github.com/rajeev-86/rag-swarm.git)
+   cd rag-swarm
 
 ```
-ma_due_diligence/
-├── .env.example              ← Copy to .env and fill in your keys
-├── requirements.txt
-├── run_ingestion.py          ← One-shot: load & index your data room
-├── run_query.py              ← Interactive query loop for manual testing
-│
-├── module_a/                 ← Data Layer (this module)
-│   ├── config.py             ← All tuneable parameters
-│   ├── ingestion/
-│   │   ├── loader.py         ← PDF / DOCX / TXT / MD loading + domain inference
-│   │   └── chunker.py        ← Sentence-aware sliding-window chunker
-│   ├── retrieval/
-│   │   ├── embedder.py       ← BGE-M3 dense + sparse (singleton)
-│   │   ├── vector_store.py   ← ChromaDB cosine search
-│   │   ├── bm25_store.py     ← BM25Okapi keyword index (persisted)
-│   │   ├── hybrid_search.py  ← Parallel search → RRF
-│   │   └── rrf.py            ← Reciprocal Rank Fusion
-│   ├── reranker.py           ← BGE-reranker-v2-m3 (singleton)
-│   ├── query_decomposer.py   ← Stage 1 LLM decomposition
-│   ├── pipeline.py           ← RAGPipeline — the main entry point
-│   └── tests/
-│       ├── conftest.py       ← Synthetic M&A fixtures (session-scoped)
-│       └── test_pipeline.py  ← Unit + integration tests, poison pill test
-│
-├── module_b/                 ← Domain Agents (Workers)
-│   ├── agent_factory.py      ← Factory pattern for agent instantiation
-│   ├── base_agent.py         ← Base LLM invocation and shared logic
-│   ├── config.py             ← Module B configuration parameters
-│   ├── cyber_agent.py        ← Cybersecurity Domain Agent
-│   ├── financial_agent.py    ← Financial Domain Agent
-│   ├── hr_agent.py           ← HR Domain Agent
-│   ├── legal_agent.py        ← Legal Domain Agent
-│   ├── schemas.py            ← Output schemas for strict extractions
-│   └── test_agents.py        ← Isolated extraction tests
-│
-├── module_c/                 ← Mesh Interface (P2P Debate)
-│   ├── __init__.py
-│   ├── agent_nodes.py        ← LangGraph node factories for domain agents
-│   ├── debate_monitor.py     ← Kill-switch detection and mesh routing
-│   ├── mesh_graph.py         ← Mesh sub-graph StateGraph assembly
-│   ├── mesh_state.py         ← Typed state schema (inboxes, threads)
-│   ├── peer_tools.py         ← P2P tool factories (send/resolve)
-│   └── tests/
-│       └── test_mesh.py      ← P2P routing and kill-switch tests
-│
-├── module_d/                 ← Leader Agent (State Hub)
-│   ├── __init__.py
-│   ├── checkpoint_manager.py ← Disk checkpoint save/load + state persistence
-│   ├── leader_graph.py       ← Global LangGraph StateGraph assembly
-│   ├── leader_nodes.py       ← Node handlers for leader orchestration
-│   ├── leader_state.py       ← Typed state schema (shared memory, audit log)
-│   └── tests/
-│       └── test_leader.py    ← Kill-switch detection and checkpointing tests
-│
-└── data/
-    └── data_room/            ← Drop your M&A documents here
-```
 
----
-
-## Quickstart
-
-### 1. Install dependencies
+2. **Install dependencies:**
 ```bash
-python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
+
 ```
 
-### 2. Configure environment
-```bash
-cp .env.example .env
-# Edit .env — at minimum set GROQ_API_KEY for dev mode
+
+3. **Configure Environment:**
+Create a `.env` file in the root directory and configure your chosen API keys:
+```env
+# Required for DeepEval / Swarm LLM-as-a-judge
+GOOGLE_API_KEY="your-gemini-key" 
+
+# Optional: Set the swarm backend (defaults to 'groq')
+LLM_BACKEND="groq" # Options: groq, ollama
+GROQ_API_KEY="your-groq-key"
+GROQ_MODEL="llama3-70b-8192"
+
 ```
 
-### 3. Add documents to the data room
-Drop any `.pdf`, `.docx`, `.txt`, or `.md` files into `data/data_room/`.
-Domain (legal / financial / hr / cybersecurity) is auto-inferred from filenames
-and content — no manual tagging required.
 
-### 4. Ingest
+
+---
+
+## 🚀 Usage Guide
+
+### 1. Ingest the Data Room
+
+Import the test dataset and populate the ChromaDB and BM25 databases.
+
 ```bash
+python import_hf_dataset.py
 python run_ingestion.py
-```
-Ingestion is **idempotent** — re-running it on the same files is safe.
 
-### 5. Query
-```bash
-# Interactive sample queries
-python run_query.py
-
-# Single custom query
-python run_query.py "What are the change-of-control penalties and cybersecurity risks?"
 ```
 
-### 6. Run tests
+### 2. Execute the Swarm
+
+Run the master script to trigger the full A → B → Bridge → C/D pipeline. The swarm will retrieve evidence, extract risks, merge duplicate tasks, and dispatch debates to the LangGraph mesh.
+
 ```bash
-pytest module_a/tests/ -v
+python run_audit.py
+
 ```
 
 ---
 
-## Configuration Reference (`module_a/config.py`)
+## 📊 Evaluation (DeepEval)
 
-| Variable | Default | Description |
-|---|---|---|
-| `LLM_BACKEND` | `groq` | `groq` for dev, `ollama` for production |
-| `GROQ_MODEL` | `llama-3.1-8b-instant` | Groq model ID |
-| `OLLAMA_MODEL` | `llama3:8b` | Local Ollama model |
-| `EMBEDDING_DEVICE` | `cpu` | `cuda` for GPU acceleration |
-| `chunk_size` | `512` | Target words per chunk |
-| `chunk_overlap` | `64` | Overlap words between chunks |
-| `top_k_retrieval` | `20` | Candidates per search arm |
-| `top_k_reranked` | `5` | Final chunks after reranking |
-| `rrf_k` | `60` | RRF constant |
-| `max_subqueries` | `4` | Max query decomposition branches |
+The project utilises DeepEval (powered by Gemini) to quantitatively score the non-deterministic outputs of the system.
 
----
-
-## Switching to Production (Ollama)
+**Phase 1: Retrieval Metrics**
+Evaluates Module A's 5-stage pipeline for Contextual Precision, Contextual Recall, and Faithfulness.
 
 ```bash
-# .env
-LLM_BACKEND=ollama
-OLLAMA_MODEL=llama3:8b
-EMBEDDING_DEVICE=cuda   # if GPU available
+python evaluate_hf_questions.py
+
 ```
 
-Make sure Ollama is running locally:
+**Phase 2: Agent Trajectory Metrics**
+Parses LangGraph execution logs to grade the swarm's Tool Correctness, Step Efficiency, and overall Plan Adherence.
+
 ```bash
-ollama serve
-ollama pull llama3:8b
+python evaluate_swarm_metrics.py
+
 ```
 
 ---
 
-## Module Roadmap (spec §4)
-
-| Module | Status | Description |
-|---|---|---|
-| **A** | ✅ Complete | 5-Stage RAG pipeline (Data Layer) |
-| **B** | ✅ Complete | Domain agents — Legal, Financial, HR, Cyber |
-| **C** | ✅ Complete | Mesh interface — P2P tool-calling protocol |
-| **D** | ✅ Complete | Leader Agent — LangGraph state + kill switch |
-
-**Integration rule:** Do not run the full graph until each module passes its isolated unit tests.
+*Note: This architecture avoids the "dumb zone" of context degradation by using isolated subagents with specific tools rather than a monolithic master agent.*
