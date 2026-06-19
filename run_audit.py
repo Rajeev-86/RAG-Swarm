@@ -3,7 +3,8 @@
 run_audit.py
 ────────────
 Main execution entry point for the Federated M&A Due Diligence Swarm.
-Integrates Module A (RAG Layer), Module C (Mesh), and Module D (Leader).
+Integrates Module A (RAG Layer), Module B (Domain Agents), 
+Module C (Mesh), and Module D (Leader).
 
 Usage:
     python run_audit.py
@@ -14,12 +15,14 @@ import uuid
 import pprint
 from typing import List
 
-# Setup environment if needed
-from dotenv import load_dotenv # if exists? Or just python standard
+from dotenv import load_dotenv
 
+# Import all integration points
 from module_a.pipeline import RAGPipeline
+from module_b.agent_factory import run_all_agents
+from module_b.bridge import agent_results_to_audit_tasks
 from module_d.leader_graph import build_leader_graph
-from module_d.leader_state import make_audit_task, make_initial_global_state
+from module_d.leader_state import make_initial_global_state
 
 load_dotenv()
 
@@ -30,47 +33,45 @@ def main():
     print("Building Leader Graph (Module D & C)...")
     leader_graph = build_leader_graph(use_sqlite_checkpointer=False)
 
-    # Let's define some cross-domain audit tasks to kick off the swarm
-    task_definitions = [
-        {
-            "initiating_agent": "financial",
-            "target_agent": "legal",
-            "query": "Do the contract penalty clauses cover the identified $12M revenue discrepancy?",
-        },
-        {
-            "initiating_agent": "cybersecurity",
-            "target_agent": "hr",
-            "query": "Does the recent data breach report indicate any employee misconduct or require termination protocols?",
-        }
-    ]
+    # 1. Provide an overarching query to kick off the Due Diligence sweep
+    overarching_query = (
+        "Identify all critical legal, financial, HR, and cybersecurity risks in the "
+        "target company's data room, paying special attention to the $12M revenue "
+        "discrepancy and the recent data breach."
+    )
     
-    tasks = []
-    print("\nPreparing Audit Tasks and retrieving initial context...")
-    for i, td in enumerate(task_definitions):
-        print(f"  [{i+1}/{len(task_definitions)}] Retrieving context for: {td['query']}")
-        
-        # Module A: 5-Stage RAG engine
-        retrieval_result = rag.retrieve(td["query"])
-        
-        # Format the RAG results into chunk strings
-        evidence_chunks = [
-            f"[Source: {hit.get('metadata', {}).get('filename', 'Unknown')}]\n{hit.get('document', '')}"
-            for hit in retrieval_result.retrieved_chunks
-        ]
-        
-        task = make_audit_task(
-            task_id=f"task_{i+1}",
-            initiating_agent=td["initiating_agent"],
-            target_agent=td["target_agent"],
-            query=td["query"],
-            evidence_chunks=evidence_chunks
-        )
-        tasks.append(task)
+    print(f"\n[Step 1] Module A: Retrieving context for the overarching sweep...")
+    print(f"Query: {overarching_query}")
+    retrieval_result = rag.retrieve(overarching_query)
+    
+    print(f"\n[Step 2] Module B: Running Domain Agents for initial extraction...")
+    # Module B independently processes the chunks, generates Findings, 
+    # and creates PeerQueries for anything requiring cross-domain validation
+    agent_results = run_all_agents(query=overarching_query, retrieval_result=retrieval_result)
+    
+    print("\n[Module B Findings Summary]")
+    for domain, result in agent_results.items():
+        print(f"  - {domain.value.upper()}: {len(result.findings)} finding(s), "
+              f"{len(result.peer_queries)} peer query/queries flagged.")
+
+    print(f"\n[Step 3] Bridge: Converting cross-domain PeerQueries to Swarm AuditTasks...")
+    # The bridge merges duplicate queries and sets up the Swarm payload
+    tasks = agent_results_to_audit_tasks(
+        agent_results, 
+        prioritise_critical=True, 
+        deduplicate_pairs=True
+    )
+    
+    # If Module B didn't flag any cross-domain issues, the Swarm doesn't need to run
+    if not tasks:
+        print("\nNo cross-domain peer queries were generated. Audit sweep complete. "
+              "All risks were self-contained within their respective domains.")
+        return
         
     run_id = f"audit-run-{uuid.uuid4().hex[:8]}"
     initial_state = make_initial_global_state(audit_tasks=tasks, run_id=run_id)
     
-    print(f"\nKicking off Swarm Audit (Run ID: {run_id})...\n" + "="*60)
+    print(f"\n[Step 4] Module C/D: Kicking off Swarm Audit (Run ID: {run_id})...\n" + "="*60)
     
     # Run the swarm
     result = leader_graph.invoke(initial_state, config={"configurable": {"thread_id": run_id}})
