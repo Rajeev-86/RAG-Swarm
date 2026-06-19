@@ -92,7 +92,7 @@ class MeshState(TypedDict):
     financial_inbox: List[PeerMessage]
     legal_inbox: List[PeerMessage]
     hr_inbox: List[PeerMessage]
-    cyber_inbox: List[PeerMessage]
+    cybersecurity_inbox: List[PeerMessage]
 
     # ── debate bookkeeping (merge reducer) ───────────────────────────────────
     debate_threads: Annotated[Dict[str, DebateThread], _merge_debate_threads]
