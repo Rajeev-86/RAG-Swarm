@@ -122,7 +122,7 @@ class BaseAgent(ABC):
             return ""
         parts = []
         for i, chunk in enumerate(chunks, 1):
-            content = chunk.get("content", chunk.get("text", "")).strip()
+            content = chunk.get("document", chunk.get("content", chunk.get("text", ""))).strip()
             source = chunk.get("metadata", {}).get("source", "unknown_source")
             chunk_id = chunk.get("id", f"chunk_{i}")
             parts.append(
