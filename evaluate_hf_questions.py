@@ -2,15 +2,23 @@
 """
 evaluate_hf_questions.py
 ────────────────────────
-Runs the HuggingFace EnterpriseRAG-Bench test questions through the RAG Swarm.
+Runs the HuggingFace EnterpriseRAG-Bench test questions through the RAG Swarm
+and evaluates RAG metrics (Context Precision, Context Recall, Faithfulness) using DeepEval.
 """
 
+import os
+import uuid
+import textwrap
 from datasets import load_dataset
+
 from module_a.pipeline import RAGPipeline
 from module_d.leader_state import make_audit_task, make_initial_global_state
 from module_d.leader_graph import build_leader_graph
-import uuid
-import pprint
+
+# DeepEval imports for Spec §5.1 RAG Metrics
+from deepeval import evaluate
+from deepeval.metrics import ContextualPrecisionMetric, ContextualRecallMetric, FaithfulnessMetric
+from deepeval.test_case import LLMTestCase
 
 def run_evaluation():
     print("Loading test questions from HuggingFace...")
@@ -23,26 +31,31 @@ def run_evaluation():
     rag = RAGPipeline()
     leader_graph = build_leader_graph(use_sqlite_checkpointer=False)
 
-    # Let's take the first 3 questions just to demonstrate the pipeline
+    # Taking a small batch to demonstrate the pipeline and save API costs during testing
     test_batch = questions.select(range(min(3, len(questions))))
-    tasks = []
+    test_cases = []
     
-    print("\nPreparing tasks for Swarm dispatch...")
+    print("\nPreparing tasks and generating Swarm responses for DeepEval...")
     for idx, row in enumerate(test_batch):
         q_id = row['question_id']
         question_text = row['question']
+        gold_answer = row['gold_answer']
         
-        print(f"\n[{q_id}] Retrieving context for: {question_text}")
+        print(f"\n[{q_id}] Retrieving context and processing: {question_text}")
         
-        # Pull context from our Module A data layer
+        # 1. Retrieve Context via Module A
         retrieval_hits = rag.retrieve(question_text)
         
+        # Format chunks for the Swarm dispatch
         evidence_chunks = [
             f"[Source: {hit.get('metadata', {}).get('filename', 'Unknown')}]\n{hit.get('document', '')}"
             for hit in retrieval_hits.retrieved_chunks
         ]
-                # We can dynamically assign domains based on the question_type if needed, 
-        # but defaulting to financial <-> legal for demonstration.
+        
+        # Format pure document strings for DeepEval Context Metrics
+        retrieval_context = [hit.get('document', '') for hit in retrieval_hits.retrieved_chunks]
+        
+        # 2. Dispatch to Swarm
         task = make_audit_task(
             task_id=q_id,
             initiating_agent="financial",
@@ -50,30 +63,44 @@ def run_evaluation():
             query=question_text,
             evidence_chunks=evidence_chunks
         )
-        tasks.append(task)
         
-    run_id = f"hf-eval-{uuid.uuid4().hex[:8]}"
-    initial_state = make_initial_global_state(audit_tasks=tasks, run_id=run_id)
+        run_id = f"hf-eval-{uuid.uuid4().hex[:8]}"
+        initial_state = make_initial_global_state(audit_tasks=[task], run_id=run_id)
+        
+        # Run the swarm for this single task to cleanly pair input/output
+        result = leader_graph.invoke(initial_state, config={"configurable": {"thread_id": run_id}})
+        
+        # 3. Extract the Swarm's final negotiated answer
+        actual_output = "No resolution reached."
+        for debate_id, finding in result.get("shared_memory", {}).items():
+            actual_output = finding.get('resolution_summary', actual_output)
+            break # Isolate the first resolution for this specific task
+            
+        print(f"Swarm Output: {textwrap.shorten(actual_output, width=100)}")
+        
+        # 4. Create DeepEval Test Case
+        test_case = LLMTestCase(
+            input=question_text,
+            actual_output=actual_output,
+            expected_output=gold_answer,
+            retrieval_context=retrieval_context
+        )
+        test_cases.append(test_case)
+        
+    print("\n" + "="*60 + "\nRUNNING DEEPEVAL METRICS (Spec §5.1)\n" + "="*60)
     
-    print(f"\nKicking off Swarm on {len(tasks)} questions... (Run ID: {run_id})")
-    result = leader_graph.invoke(initial_state, config={"configurable": {"thread_id": run_id}})
+    # Initialize the required RAG metrics
+    # Note: thresholds can be tuned based on your strictness requirements
+    precision = ContextualPrecisionMetric(threshold=0.5, include_reason=True)
+    recall = ContextualRecallMetric(threshold=0.5, include_reason=True)
+    faithfulness = FaithfulnessMetric(threshold=0.5, include_reason=True)
     
-    print("\n" + "="*60 + "\nEVALUATION COMPLETE\n" + "="*60)
-    for q_idx in range(len(test_batch)):
-        q_id = test_batch[q_idx]['question_id']
-        gold = test_batch[q_idx]['gold_answer']
-        
-        # The debate finding is keyed by its debate_id. Wait, how do we get the debate_id?
-        # The task maps to an initiating mesh state. 
-        # For simplicity in testing, we can just print the shared_memory findings overall.
-        
-    print("\n[Swarm Findings Generated]")
-    for debate_id, finding in result.get("shared_memory", {}).items():
-        print(f"\n[Generated Summary (Debate ID: {debate_id})]:")
-        ans = finding.get('resolution_summary', '')
-        # Simple text wrapping
-        import textwrap
-        print(textwrap.fill(ans, width=80))
+    # Execute the evaluation framework
+    evaluate(test_cases, [precision, recall, faithfulness])
+    
+    print("\nEvaluation complete. DeepEval results and reasoning are outputted above.")
 
 if __name__ == "__main__":
+    # Note: DeepEval defaults to requiring an OPENAI_API_KEY in your .env 
+    # to power the LLM-as-a-judge for scoring these metrics.
     run_evaluation()
