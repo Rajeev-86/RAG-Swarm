@@ -3,7 +3,7 @@
 evaluate_hf_questions.py
 ────────────────────────
 Runs the HuggingFace EnterpriseRAG-Bench test questions through the RAG Swarm
-and evaluates RAG metrics (Context Precision, Context Recall, Faithfulness) using DeepEval.
+and evaluates RAG metrics (Context Precision, Context Recall, Faithfulness) using DeepEval and Gemini.
 """
 
 import os
@@ -19,8 +19,14 @@ from module_d.leader_graph import build_leader_graph
 from deepeval import evaluate
 from deepeval.metrics import ContextualPrecisionMetric, ContextualRecallMetric, FaithfulnessMetric
 from deepeval.test_case import LLMTestCase
+from deepeval.models import GeminiModel # Import the Gemini Model wrapper
 
 def run_evaluation():
+    # Ensure the Google API key is set in your environment
+    google_api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+    if not google_api_key:
+        raise ValueError("Please set your GOOGLE_API_KEY environment variable to use Gemini for DeepEval.")
+
     print("Loading test questions from HuggingFace...")
     ds = load_dataset("onyx-dot-app/EnterpriseRAG-Bench", "questions")
     questions = ds["test"]
@@ -87,13 +93,16 @@ def run_evaluation():
         )
         test_cases.append(test_case)
         
-    print("\n" + "="*60 + "\nRUNNING DEEPEVAL METRICS (Spec §5.1)\n" + "="*60)
+    print("\n" + "="*60 + "\nRUNNING DEEPEVAL METRICS (Spec §5.1) WITH GEMINI\n" + "="*60)
     
-    # Initialize the required RAG metrics
-    # Note: thresholds can be tuned based on your strictness requirements
-    precision = ContextualPrecisionMetric(threshold=0.5, include_reason=True)
-    recall = ContextualRecallMetric(threshold=0.5, include_reason=True)
-    faithfulness = FaithfulnessMetric(threshold=0.5, include_reason=True)
+    # Initialize the Gemini model for DeepEval
+    # You can change 'gemini-2.5-flash' to 'gemini-2.5-pro' if you want a more rigorous (but slower) judge
+    gemini_judge = GeminiModel(model="gemini-2.5-flash", api_key=google_api_key)
+
+    # Initialize the required RAG metrics, passing the gemini_judge to the 'model' parameter
+    precision = ContextualPrecisionMetric(threshold=0.5, include_reason=True, model=gemini_judge)
+    recall = ContextualRecallMetric(threshold=0.5, include_reason=True, model=gemini_judge)
+    faithfulness = FaithfulnessMetric(threshold=0.5, include_reason=True, model=gemini_judge)
     
     # Execute the evaluation framework
     evaluate(test_cases, [precision, recall, faithfulness])
@@ -101,6 +110,4 @@ def run_evaluation():
     print("\nEvaluation complete. DeepEval results and reasoning are outputted above.")
 
 if __name__ == "__main__":
-    # Note: DeepEval defaults to requiring an OPENAI_API_KEY in your .env 
-    # to power the LLM-as-a-judge for scoring these metrics.
     run_evaluation()
