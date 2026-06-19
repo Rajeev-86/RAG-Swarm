@@ -38,7 +38,7 @@ def main():
             "query": "Do the contract penalty clauses cover the identified $12M revenue discrepancy?",
         },
         {
-            "initiating_agent": "cyber",
+            "initiating_agent": "cybersecurity",
             "target_agent": "hr",
             "query": "Does the recent data breach report indicate any employee misconduct or require termination protocols?",
         }
