@@ -38,7 +38,10 @@ from .leader_state import (
     GlobalState,
     make_log_entry,
 )
+import os
+import logging
 
+logger = logging.getLogger(__name__)
 
 _FORCE_SUMMARY_PROMPT = """You are a senior M&A analyst summarising a PARTIALLY RESOLVED due diligence debate.
 The debate was forcibly interrupted by the Leader Agent's kill switch before the agents reached consensus.
@@ -205,8 +208,20 @@ def build_force_summary_node(
         handle_mesh_result → force_summary → checkpoint → advance_task → …
     """
     if llm is None:
-        from langchain_ollama import ChatOllama  # type: ignore
-        llm = ChatOllama(model="llama3:8b", temperature=0)
+        # Read LLM_BACKEND from config or environment, defaulting to groq
+        llm_backend = os.getenv("LLM_BACKEND", "groq").lower()
+        
+        if llm_backend == "groq":
+            from langchain_groq import ChatGroq
+            llm = ChatGroq(
+                api_key=os.getenv("GROQ_API_KEY"),
+                model_name=os.getenv("GROQ_MODEL", "llama3-70b-8192") 
+            )
+        elif llm_backend == "ollama":
+            from langchain_community.chat_models import ChatOllama
+            llm = ChatOllama(model="llama3")
+        else:
+            raise ValueError(f"Unsupported LLM_BACKEND: {llm_backend}")
 
     def force_summary_node(state: GlobalState) -> Dict[str, Any]:
         mesh: Dict[str, Any] = state.get("last_mesh_state") or {}
