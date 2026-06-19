@@ -61,7 +61,7 @@ def chunk_text(
         A list of non-empty string chunks.
     """
     chunk_size = chunk_size or cfg.chunk_size
-    overlap    = overlap    or cfg.chunk_overlap
+    overlap    = overlap if overlap is not None else cfg.chunk_overlap
 
     sentences = _split_sentences(text)
     chunks:      list[str]  = []
