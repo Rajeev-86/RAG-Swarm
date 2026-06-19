@@ -16,7 +16,7 @@ context window.
 """
 
 import re
-import uuid
+import hashlib
 from dataclasses import dataclass, field
 from module_a.ingestion.loader import RawDocument
 from module_a.config import cfg
@@ -98,8 +98,12 @@ def chunk_document(doc: RawDocument) -> list[DocumentChunk]:
     chunks: list[DocumentChunk] = []
 
     for i, content in enumerate(raw_chunks):
+        # Generate a deterministic ID based on source, index, and text content
+        hash_input = f"{doc.source}::{i}::{content}".encode("utf-8")
+        deterministic_id = hashlib.sha256(hash_input).hexdigest()
+
         chunks.append(DocumentChunk(
-            chunk_id    = str(uuid.uuid4()),
+            chunk_id    = deterministic_id,
             content     = content,
             source      = doc.source,
             domain      = doc.domain,
