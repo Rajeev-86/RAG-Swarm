@@ -85,12 +85,13 @@ chroma_data/
 # Data Directory (raw data, embeddings, checkpoints)
 # ════════════════════════════════════════════════════════════════════════════
 # Ignore entire data/ directory to avoid committing large files
-# Use a .gitkeep file in subdirectories if you want to preserve structure in git
-data/
-touch data/.gitkeep
-touch data/data_room/.gitkeep
-touch data/embeddings/.gitkeep
-*.pkl
+# Ignore everything inside the data/ directory
+data/*
+
+# ...But do NOT ignore the .gitkeep files (preserves folder structure)
+!data/**/.gitkeep
+
+*.pkls
 *.pickle
 
 # ════════════════════════════════════════════════════════════════════════════
