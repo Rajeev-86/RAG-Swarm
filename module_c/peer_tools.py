@@ -21,7 +21,7 @@ import uuid
 from datetime import datetime
 from typing import List, Optional
 
-from langchain_core.tools import tool
+from langchain_core.tools import StructuredTool
 
 VALID_AGENTS = frozenset({"financial", "legal", "hr", "cybersecurity"})
 
@@ -30,7 +30,7 @@ VALID_AGENTS = frozenset({"financial", "legal", "hr", "cybersecurity"})
 # Tool 1: send_peer_query
 # ─────────────────────────────────────────────────────────────────────────────
 
-def create_send_peer_query_tool(source_agent: str):
+def create_send_peer_query_tool(source_agent: str) -> StructuredTool:
     """
     Return a LangChain tool bound to *source_agent* that lets it send a
     query + supporting RAG evidence to a peer domain agent.
@@ -39,7 +39,7 @@ def create_send_peer_query_tool(source_agent: str):
     agent_node executor (see agent_nodes.py).
     """
 
-    @tool
+    # 1. Define the raw python function WITHOUT the @tool decorator
     def send_peer_query(
         target_agent: str,
         query: str,
@@ -80,16 +80,18 @@ def create_send_peer_query_tool(source_agent: str):
             "timestamp": datetime.utcnow().isoformat(),
         }
 
-    # Give each tool a distinct name so LangSmith / Phoenix traces are readable.
-    send_peer_query.name = f"send_peer_query_from_{source_agent}"
-    return send_peer_query
+    # 2. Build the tool dynamically to guarantee the JSON schema binds the correct name
+    return StructuredTool.from_function(
+        func=send_peer_query,
+        name=f"send_peer_query_from_{source_agent}"
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Tool 2: resolve_debate
 # ─────────────────────────────────────────────────────────────────────────────
 
-def create_resolve_debate_tool(source_agent: str):
+def create_resolve_debate_tool(source_agent: str) -> StructuredTool:
     """
     Return a LangChain tool that lets *source_agent* close a debate thread
     by emitting an agreed-upon finding summary.
@@ -98,7 +100,7 @@ def create_resolve_debate_tool(source_agent: str):
     the matching DebateThread is marked is_resolved=True by the agent_node.
     """
 
-    @tool
+    # 1. Define the raw python function WITHOUT the @tool decorator
     def resolve_debate(debate_id: str, resolution_summary: str) -> dict:
         """
         Mark a debate thread as resolved with a concise finding summary.
@@ -118,5 +120,8 @@ def create_resolve_debate_tool(source_agent: str):
             "timestamp": datetime.utcnow().isoformat(),
         }
 
-    resolve_debate.name = f"resolve_debate_from_{source_agent}"
-    return resolve_debate
+    # 2. Build the tool dynamically to guarantee the JSON schema binds the correct name
+    return StructuredTool.from_function(
+        func=resolve_debate,
+        name=f"resolve_debate_from_{source_agent}"
+    )
