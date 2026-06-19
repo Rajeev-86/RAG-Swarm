@@ -59,6 +59,7 @@ Integration
 """
 from __future__ import annotations
 
+import os
 from typing import Any, Callable, Literal, Optional
 
 from langchain_core.language_models import BaseChatModel
@@ -136,25 +137,30 @@ def build_leader_graph(
 
     Args:
         llm:                     Chat model for force_summary (and mesh agents if
-                                 mesh_graph is None).  Defaults to Ollama llama3:8b.
-                                 For faster dev/test: ChatGroq(model="llama-3.1-8b-instant")
-
+                                 mesh_graph is None). Dynamically routes via LLM_BACKEND
+                                 if None is provided.
         mesh_graph:              Pre-compiled Module C graph.  If None, built lazily
                                  from module_c.build_mesh_graph(llm=llm) on first call.
-
-        checkpoint_dir:          Directory for JSON snapshots and (optionally) the
-                                 SQLite LangGraph checkpoint db.
-
-        use_sqlite_checkpointer: True  → SqliteSaver (disk, cross-session recovery).
-                                 False → MemorySaver (in-process, tests/CI).
-
-        _mesh_state_factory:     For tests only — callable injected into dispatch_mesh
-                                 to avoid importing module_c.
-
-    Returns:
-        A compiled CompiledGraph ready for .invoke() / .stream().
+        checkpoint_dir:          Directory for JSON snapshots and SQLite db.
+        use_sqlite_checkpointer: True  → SqliteSaver. False → MemorySaver.
+        _mesh_state_factory:     For tests only.
     """
     builder = StateGraph(GlobalState)
+
+    # ── Ensure global LLM instantiation if none provided ──────────────────────
+    if llm is None:
+        llm_backend = os.getenv("LLM_BACKEND", "groq").lower()
+        if llm_backend == "groq":
+            from langchain_groq import ChatGroq
+            llm = ChatGroq(
+                api_key=os.getenv("GROQ_API_KEY"),
+                model_name=os.getenv("GROQ_MODEL", "llama3-70b-8192")
+            )
+        elif llm_backend == "ollama":
+            from langchain_community.chat_models import ChatOllama
+            llm = ChatOllama(model="llama3")
+        else:
+            raise ValueError(f"Unsupported LLM_BACKEND: {llm_backend}")
 
     # ── instantiate node functions ────────────────────────────────────────────
     dispatch_mesh = build_dispatch_mesh_node(
@@ -162,6 +168,7 @@ def build_leader_graph(
         llm=llm,
         _mesh_state_factory=_mesh_state_factory,
     )
+    # The forced summary node now explicitly receives the validated LLM
     force_summary = build_force_summary_node(llm=llm)
     checkpoint    = build_checkpoint_node(checkpoint_dir=checkpoint_dir)
 
@@ -176,31 +183,20 @@ def build_leader_graph(
 
     # ── edges ─────────────────────────────────────────────────────────────────
     builder.set_entry_point("dispatch_mesh")
-
     builder.add_edge("dispatch_mesh", "handle_mesh_result")
-
-    # Branch: clean exit or kill-switch
     builder.add_conditional_edges(
         "handle_mesh_result",
         _route_after_mesh_result,
         {"force_summary": "force_summary", "advance_task": "advance_task"},
     )
-
-    # Kill-switch path: force_summary → checkpoint → advance_task
     builder.add_edge("force_summary", "checkpoint")
     builder.add_edge("checkpoint",    "advance_task")
-
-    # advance_task branches: wipe context or skip straight to check_complete
     builder.add_conditional_edges(
         "advance_task",
         _route_after_advance_task,
         {"reset_context": "reset_context", "check_complete": "check_complete"},
     )
-
-    # After context wipe, both paths converge at check_complete
     builder.add_edge("reset_context", "check_complete")
-
-    # Loop or end
     builder.add_conditional_edges(
         "check_complete",
         _route_after_check_complete,
