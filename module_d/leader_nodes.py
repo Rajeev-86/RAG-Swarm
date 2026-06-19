@@ -26,6 +26,8 @@ touching Ollama or Module C at all:
 """
 from __future__ import annotations
 
+import os
+import logging
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional
 
@@ -38,8 +40,6 @@ from .leader_state import (
     GlobalState,
     make_log_entry,
 )
-import os
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -68,17 +68,7 @@ def build_dispatch_mesh_node(
     """
     Factory: returns a LangGraph node that dispatches the current AuditTask
     to the Module C mesh sub-graph and captures the full MeshState result.
-
-    Args:
-        mesh_graph:           Pre-built compiled mesh graph.  If None, builds
-                              one lazily from module_c using `llm`.
-        llm:                  Chat model forwarded to build_mesh_graph when
-                              mesh_graph is not supplied.
-        _mesh_state_factory:  Callable(initiating, target, query, chunks) →
-                              MeshState dict.  Defaults to module_c's
-                              create_initial_mesh_state.  Override in tests.
     """
-
     def dispatch_mesh_node(state: GlobalState) -> Dict[str, Any]:
         tasks: List[AuditTask] = state["audit_tasks"]
         idx: int = state["current_task_idx"]
@@ -146,12 +136,6 @@ def build_dispatch_mesh_node(
 def handle_mesh_result_node(state: GlobalState) -> Dict[str, Any]:
     """
     Inspect the mesh sub-graph exit state and branch accordingly.
-
-    Clean exit  → absorb resolved_findings into shared_memory, log success.
-    Kill-switch → log the event only; routing sends us to force_summary next.
-
-    The conditional edge _route_after_mesh_result() reads kill_switch_triggered
-    to determine the next node.
     """
     mesh: Dict[str, Any] = state.get("last_mesh_state") or {}
     tasks = state["audit_tasks"]
@@ -203,14 +187,9 @@ def build_force_summary_node(
     """
     Factory: returns a node that uses an LLM to synthesise a forced finding
     summary from whatever partial findings the interrupted mesh produced.
-
-    Called ONLY on the kill-switch path:
-        handle_mesh_result → force_summary → checkpoint → advance_task → …
     """
     if llm is None:
-        # Read LLM_BACKEND from config or environment, defaulting to groq
         llm_backend = os.getenv("LLM_BACKEND", "groq").lower()
-        
         if llm_backend == "groq":
             from langchain_groq import ChatGroq
             llm = ChatGroq(
@@ -298,12 +277,7 @@ def build_checkpoint_node(
     """
     Factory: returns a node that writes a JSON checkpoint to disk and
     increments the checkpoint counter.
-
-    Runs immediately after force_summary on the kill-switch path so the
-    state is captured while last_mesh_state still holds the kill-switch
-    metadata (it gets cleared by reset_context_node which runs later).
     """
-
     def checkpoint_node(state: GlobalState) -> Dict[str, Any]:
         mesh = state.get("last_mesh_state") or {}
         reason = mesh.get("kill_switch_reason") or "kill_switch"
@@ -338,12 +312,6 @@ def build_checkpoint_node(
 def reset_context_node(state: GlobalState) -> Dict[str, Any]:
     """
     Clear last_mesh_state, wiping all sub-agent context windows.
-
-    Spec §3.2: "resets the sub-agents' context windows."
-
-    This ensures no corrupted context from an interrupted debate bleeds
-    into the next mesh invocation.  Runs AFTER advance_task so that
-    advance_task can still read kill_switch_triggered from last_mesh_state.
     """
     return {
         "last_mesh_state": None,
@@ -364,9 +332,6 @@ def advance_task_node(state: GlobalState) -> Dict[str, Any]:
     """
     Mark the current task complete (clean) or force_resolved (kill-switch),
     advance current_task_idx, and update data_room_status counters.
-
-    Reads kill_switch_triggered from last_mesh_state — this is why
-    reset_context runs AFTER advance_task on the kill-switch path.
     """
     tasks = list(state["audit_tasks"])
     idx = state["current_task_idx"]
