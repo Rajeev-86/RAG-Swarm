@@ -154,7 +154,7 @@ def build_leader_graph(
             from langchain_groq import ChatGroq
             llm = ChatGroq(
                 api_key=os.getenv("GROQ_API_KEY"),
-                model_name=os.getenv("GROQ_MODEL", "llama3-70b-8192")
+                model_name=os.getenv("GROQ_MODEL_D", "llama3-70b-8192")
             )
         elif llm_backend == "ollama":
             from langchain_ollama import ChatOllama

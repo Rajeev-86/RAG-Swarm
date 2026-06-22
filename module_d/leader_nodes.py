@@ -69,7 +69,7 @@ def build_dispatch_mesh_node(
     Factory: returns a LangGraph node that dispatches the current AuditTask
     to the Module C mesh sub-graph and captures the full MeshState result.
     """
-    
+
     if mesh_graph is None:                 # build ONCE here
         from module_c import build_mesh_graph
         mesh_graph = build_mesh_graph(llm=llm)
@@ -193,7 +193,7 @@ def build_force_summary_node(
             from langchain_groq import ChatGroq
             llm = ChatGroq(
                 api_key=os.getenv("GROQ_API_KEY"),
-                model_name=os.getenv("GROQ_MODEL", "llama3-70b-8192") 
+                model_name=os.getenv("GROQ_MODEL_D", "llama3-70b-8192") 
             )
         elif llm_backend == "ollama":
             from langchain_ollama import ChatOllama
