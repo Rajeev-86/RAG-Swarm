@@ -133,7 +133,7 @@ def build_agent_node(
 
     if llm is None:
         from langchain_ollama import ChatOllama  # type: ignore
-        llm = ChatOllama(model="llama3:8b", temperature=0)
+        llm = ChatOllama(model="llama3.1:8b", temperature=0)
 
     send_tool = create_send_peer_query_tool(agent_name)
     resolve_tool = create_resolve_debate_tool(agent_name)
