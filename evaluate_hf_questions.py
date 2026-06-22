@@ -23,7 +23,7 @@ from deepeval.models import GeminiModel # Import the Gemini Model wrapper
 
 def run_evaluation():
     # Ensure the Google API key is set in your environment
-    google_api_key = os.getenv("GEMINI_API_KEY")
+    google_api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
     if not google_api_key:
         raise ValueError("Please set your GEMINI_API_KEY environment variable to use Gemini for DeepEval.")
 
