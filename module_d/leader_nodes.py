@@ -69,6 +69,11 @@ def build_dispatch_mesh_node(
     Factory: returns a LangGraph node that dispatches the current AuditTask
     to the Module C mesh sub-graph and captures the full MeshState result.
     """
+    
+    if mesh_graph is None:                 # build ONCE here
+        from module_c import build_mesh_graph
+        mesh_graph = build_mesh_graph(llm=llm)
+
     def dispatch_mesh_node(state: GlobalState) -> Dict[str, Any]:
         tasks: List[AuditTask] = state["audit_tasks"]
         idx: int = state["current_task_idx"]
@@ -78,12 +83,6 @@ def build_dispatch_mesh_node(
             return {"audit_complete": True}
 
         task = tasks[idx]
-
-        # ── resolve dependencies (lazy import avoids hard coupling at import) ─
-        graph = mesh_graph
-        if graph is None:
-            from module_c import build_mesh_graph  # type: ignore
-            graph = build_mesh_graph(llm=llm)
 
         factory = _mesh_state_factory
         if factory is None:
@@ -103,7 +102,7 @@ def build_dispatch_mesh_node(
                 "thread_id": f"{state['run_id']}:task:{task['task_id']}"
             }
         }
-        mesh_result = graph.invoke(mesh_seed, config=run_cfg)
+        mesh_result = mesh_graph.invoke(mesh_seed, config=run_cfg)
 
         # Mark task as running (will be updated to complete/force_resolved later)
         updated_tasks = list(tasks)
