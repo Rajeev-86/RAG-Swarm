@@ -26,18 +26,14 @@ def setup_tracing():
         
     elif backend == "phoenix":
         try:
-            import phoenix as px
+            from phoenix.otel import register
             from openinference.instrumentation.langchain import LangChainInstrumentor
             
-            # Launch the local Phoenix UI server
-            session = px.launch_app()
-            
-            # Hook OpenTelemetry into LangChain
+            register(project_name=os.getenv("LANGCHAIN_PROJECT", "RAG-Swarm-Audit"))
             LangChainInstrumentor().instrument()
             
-            print(f"✅ [Observability] Arize Phoenix tracing enabled!")
-            print(f"🔍 Phoenix UI running locally at: {session.url}")
-        except ImportError:
+            print("✅ [Observability] Arize Phoenix tracing enabled.")
+        except (ImportError, Exception):
             print("❌ [Observability] Failed to initialize Phoenix. Did you run `pip install arize-phoenix openinference-instrumentation-langchain`?")
             
     else:
