@@ -21,10 +21,10 @@ import pytest
 from module_d.leader_graph import build_leader_graph
 from module_d.leader_state import make_audit_task, make_initial_global_state
 
-# Skip this test in fast-CI if API keys aren't present, as it requires real LLM execution
+# Skip this test in fast-CI if API keys aren't present, as it requires real LLM execution 
 @pytest.mark.skipif(
-    not os.getenv("GROQ_API_KEY") and not os.getenv("GOOGLE_API_KEY"), 
-    reason="Requires active LLM backend to simulate the debate deadlock."
+    not os.getenv("GROQ_API_KEY"),
+    reason="Requires GROQ_API_KEY for the LLM debate backend."
 )
 def test_end_to_end_poison_pill_interception():
     print("\n[Test] Initializing Leader Graph for Poison Pill Injection...")
