@@ -36,3 +36,8 @@ pytest>=8.0.0
 deepeval>=1.0.0
 datasets>=2.19.0
 huggingface_hub>=0.23.0
+
+# ── Observability & Tracing ──
+langsmith>=0.1.0
+arize-phoenix>=17.9.0
+openinference-instrumentation-langchain>=0.1.66

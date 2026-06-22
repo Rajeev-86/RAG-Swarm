@@ -24,10 +24,16 @@ from module_b.bridge import agent_results_to_audit_tasks
 from module_d.leader_graph import build_leader_graph
 from module_d.leader_state import make_initial_global_state
 
+# NEW: Import our observability setup
+from module_d.observability import setup_tracing
+
 load_dotenv()
 
 def main():
-    print("Initializing RAG Pipeline (Module A)...")
+    # 0. Initialize Tracing before any LangChain/LangGraph objects are created
+    setup_tracing()
+    
+    print("\nInitializing RAG Pipeline (Module A)...")
     rag = RAGPipeline()
     
     print("Building Leader Graph (Module D & C)...")
@@ -47,7 +53,7 @@ def main():
     print(f"\n[Step 2] Module B: Running Domain Agents for initial extraction...")
     # Module B independently processes the chunks, generates Findings, 
     # and creates PeerQueries for anything requiring cross-domain validation
-    agent_results = run_all_agents(retrieval_result)
+    agent_results = run_all_agents(query=overarching_query, retrieval_result=retrieval_result)
     
     print("\n[Module B Findings Summary]")
     for domain, result in agent_results.items():
