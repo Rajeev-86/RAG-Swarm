@@ -197,7 +197,7 @@ def build_force_summary_node(
                 model_name=os.getenv("GROQ_MODEL", "llama3-70b-8192") 
             )
         elif llm_backend == "ollama":
-            from langchain_community.chat_models import ChatOllama
+            from langchain_ollama import ChatOllama
             llm = ChatOllama(model="llama3")
         else:
             raise ValueError(f"Unsupported LLM_BACKEND: {llm_backend}")
