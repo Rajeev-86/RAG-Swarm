@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Literal
 
-from .mesh_state import MeshState
+from mesh_state import MeshState
 
 MAX_TURNS: int = 3          # spec §3.2: "P2P debate exceeds turn limits (>3)"
 _DOMAIN_AGENTS = ("financial", "legal", "hr", "cybersecurity")
