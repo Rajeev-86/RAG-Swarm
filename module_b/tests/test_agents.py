@@ -25,7 +25,14 @@ from dataclasses import dataclass, field
 from unittest.mock import MagicMock, patch
 
 import pytest
+import sys
+from pathlib import Path
 
+# Add project root to sys.path for direct script execution
+_project_root = Path(__file__).parent.parent.parent
+if str(_project_root) not in sys.path:
+    sys.path.insert(0, str(_project_root))
+    
 from module_b.agent_factory import build_consolidated_report, run_all_agents
 from module_b.agents.cyber_agent import CyberAgent
 from module_b.agents.financial_agent import FinancialAgent
