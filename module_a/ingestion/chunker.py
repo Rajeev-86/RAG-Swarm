@@ -17,7 +17,15 @@ context window.
 
 import re
 import hashlib
+import sys
+from pathlib import Path
 from dataclasses import dataclass, field
+
+# Add project root to sys.path for direct script execution
+_project_root = Path(__file__).parent.parent.parent
+if str(_project_root) not in sys.path:
+    sys.path.insert(0, str(_project_root))
+
 from module_a.ingestion.loader import RawDocument
 from module_a.config import cfg
 
