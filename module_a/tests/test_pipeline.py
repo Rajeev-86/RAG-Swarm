@@ -39,14 +39,15 @@ from module_a.retrieval.rrf import reciprocal_rank_fusion
 class TestChunker:
 
     def test_long_text_produces_multiple_chunks(self):
-        text   = " ".join([f"Word{i}" for i in range(2000)])
+        # Add a period after Word{i}
+        text   = " ".join([f"Word{i}." for i in range(2000)]) 
         chunks = chunk_text(text, chunk_size=100, overlap=20)
         assert len(chunks) > 1, "2 000-word text should produce multiple chunks"
 
     def test_chunks_do_not_greatly_exceed_size(self):
-        text   = " ".join([f"Word{i}" for i in range(2000)])
+        # Add a period after Word{i}
+        text   = " ".join([f"Word{i}." for i in range(2000)]) 
         chunks = chunk_text(text, chunk_size=100, overlap=20)
-        # Allow up to 1.5× budget for a sentence that straddles the boundary
         for chunk in chunks:
             assert len(chunk.split()) <= 150, \
                 f"Chunk has {len(chunk.split())} words, exceeds 1.5× budget"
