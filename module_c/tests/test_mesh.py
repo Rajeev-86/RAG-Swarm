@@ -22,6 +22,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+import sys
+from pathlib import Path
+
+# Add project root to sys.path for direct script execution
+_project_root = Path(__file__).parent.parent.parent
+if str(_project_root) not in sys.path:
+    sys.path.insert(0, str(_project_root))
+    
 from module_c.debate_monitor import MAX_TURNS, debate_monitor_node, should_continue_mesh
 from module_c.mesh_graph import create_initial_mesh_state
 from module_c.mesh_state import DebateThread, MeshState, PeerMessage
