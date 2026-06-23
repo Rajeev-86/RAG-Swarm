@@ -63,9 +63,9 @@ from langchain_core.language_models import BaseChatModel
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 
-from agent_nodes import build_agent_node
-from debate_monitor import debate_monitor_node, should_continue_mesh
-from mesh_state import DebateThread, MeshState, PeerMessage
+from .agent_nodes import build_agent_node
+from .debate_monitor import debate_monitor_node, should_continue_mesh
+from .mesh_state import DebateThread, MeshState, PeerMessage
 
 _DOMAIN_AGENTS = ("financial", "legal", "hr", "cybersecurity")
 

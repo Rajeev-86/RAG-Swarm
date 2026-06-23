@@ -27,8 +27,8 @@ from typing import Any, Callable, Dict, List, Optional
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from mesh_state import MeshState, PeerMessage
-from peer_tools import create_resolve_debate_tool, create_send_peer_query_tool
+from .mesh_state import MeshState, PeerMessage
+from .peer_tools import create_resolve_debate_tool, create_send_peer_query_tool
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Domain-specific P2P system prompts
