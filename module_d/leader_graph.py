@@ -66,8 +66,8 @@ from langchain_core.language_models import BaseChatModel
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 
-from checkpoint_manager import get_checkpointer
-from leader_nodes import (
+from .checkpoint_manager import get_checkpointer
+from .leader_nodes import (
     advance_task_node,
     build_checkpoint_node,
     build_dispatch_mesh_node,
@@ -76,7 +76,7 @@ from leader_nodes import (
     handle_mesh_result_node,
     reset_context_node,
 )
-from leader_state import GlobalState
+from .leader_state import GlobalState
 
 
 # ─────────────────────────────────────────────────────────────────────────────
